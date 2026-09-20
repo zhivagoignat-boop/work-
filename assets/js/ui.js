@@ -26,7 +26,7 @@
     var dayNo = S.diffDays(S.load().profile.startDate, cur) + 1;
     $('#curDate').textContent = S.human(cur) + (cur === S.today() ? ' · сегодня' : '');
     var type = sch.type === 'train' ? 'тренировка' : (sch.type === 'optional' ? 'опционально' : 'восстановление');
-    $('#curMeta').textContent = sch.name + ' · ' + type + (dayNo > 0 && dayNo <= D.profile.totalDays ? ' · день ' + dayNo + '/' + D.profile.totalDays : '');
+    $('#curMeta').textContent = sch.name + ' · ' + type + (dayNo > 0 && dayNo <= S.totalDays() ? ' · день ' + dayNo + '/' + S.totalDays() : '');
     var st = S.load();
     var last = S.lastWeight();
     var lost = last ? st.profile.startWeight - last.kg : 0;
@@ -44,8 +44,8 @@
     var delta = last ? last.kg - S.planWeight(last.d) : null;
     var left = S.diffDays(cur, st.profile.endDate);
     var n = S.nutrition(cur);
-    var kcalPct = Math.min(100, n.kcal / D.profile.kcalTarget[1] * 100);
-    var pPct = Math.min(100, n.p / D.profile.protein[0] * 100);
+    var kcalPct = Math.min(100, n.kcal / D.program.kcalTarget[1] * 100);
+    var pPct = Math.min(100, n.p / D.program.protein[0] * 100);
 
     var h = '';
     h += '<div class="grid2">' +
@@ -83,11 +83,11 @@
 
     // питание
     h += '<h2>Питание</h2><div class="card">' +
-      '<div class="row spread"><span>Калории</span><strong>' + n.kcal + ' / ' + D.profile.kcalTarget[0] + '–' + D.profile.kcalTarget[1] + '</strong></div>' +
-      '<div class="meter' + (n.kcal > D.profile.kcalHardMax ? ' bad' : '') + '"><div style="width:' + kcalPct + '%"></div></div>' +
-      '<div class="row spread" style="margin-top:10px"><span>Белок</span><strong>' + n.p + ' / ' + D.profile.protein[0] + ' г</strong></div>' +
-      '<div class="meter' + (n.p < D.profile.proteinMin ? ' warn' : '') + '"><div style="width:' + pPct + '%"></div></div>' +
-      (n.p && n.p < D.profile.proteinMin ? '<p class="small" style="color:var(--warn)">⚠️ Белка меньше ' + D.profile.proteinMin + ' г — добавь протеиновый перекус (30 г + молоко + банан = +32 г).</p>' : '') +
+      '<div class="row spread"><span>Калории</span><strong>' + n.kcal + ' / ' + D.program.kcalTarget[0] + '–' + D.program.kcalTarget[1] + '</strong></div>' +
+      '<div class="meter' + (n.kcal > D.program.kcalHardMax ? ' bad' : '') + '"><div style="width:' + kcalPct + '%"></div></div>' +
+      '<div class="row spread" style="margin-top:10px"><span>Белок</span><strong>' + n.p + ' / ' + D.program.protein[0] + ' г</strong></div>' +
+      '<div class="meter' + (n.p < D.program.proteinMin ? ' warn' : '') + '"><div style="width:' + pPct + '%"></div></div>' +
+      (n.p && n.p < D.program.proteinMin ? '<p class="small" style="color:var(--warn)">⚠️ Белка меньше ' + D.program.proteinMin + ' г — добавь протеиновый перекус (30 г + молоко + банан = +32 г).</p>' : '') +
       '<button class="btn-wide" style="margin-top:10px" data-goto="food">Отметить приёмы пищи</button></div>';
 
     // режим
@@ -113,7 +113,7 @@
       h += '<h2>Подготовка к старту <span class="badge">' + doneCnt + '/' + D.checklist.length + '</span></h2><div class="card">';
       D.checklist.forEach(function (item, i) {
         var on = !!(st.checklist && st.checklist[i]);
-        h += '<div class="opt ' + (on ? 'on' : '') + '" data-chk="' + i + '"><span class="dot"></span><span class="t small">' + esc(item) + '</span></div>';
+        h += '<div class="opt ' + (on ? 'on' : '') + '" data-chk="' + i + '"><span class="dot"></span><span class="t small">' + esc(S.fill(item)) + '</span></div>';
       });
       h += '</div>';
     }
@@ -289,12 +289,12 @@
     var h = '';
 
     h += '<div class="card"><div class="row spread"><strong>Итого за день</strong>' +
-      '<span class="badge ' + (n.kcal >= D.profile.kcalTarget[0] - 150 && n.kcal <= D.profile.kcalHardMax ? 'ok' : (n.kcal ? 'bad' : '')) + '">' + n.kcal + ' ккал</span></div>' +
-      '<div class="meter"><div style="width:' + Math.min(100, n.kcal / D.profile.kcalTarget[1] * 100) + '%"></div></div>' +
+      '<span class="badge ' + (n.kcal >= D.program.kcalTarget[0] - 150 && n.kcal <= D.program.kcalHardMax ? 'ok' : (n.kcal ? 'bad' : '')) + '">' + n.kcal + ' ккал</span></div>' +
+      '<div class="meter"><div style="width:' + Math.min(100, n.kcal / D.program.kcalTarget[1] * 100) + '%"></div></div>' +
       '<div class="grid3" style="margin-top:10px">' +
-      stat(n.p + ' г', 'белок / ' + D.profile.protein[0]) + stat(n.f + ' г', 'жир / ' + D.profile.fat[0]) + stat(n.c + ' г', 'углеводы / ' + D.profile.carbs[0]) +
+      stat(n.p + ' г', 'белок / ' + D.program.protein[0]) + stat(n.f + ' г', 'жир / ' + D.program.fat[0]) + stat(n.c + ' г', 'углеводы / ' + D.program.carbs[0]) +
       '</div>' +
-      '<p class="small muted" style="margin-bottom:0">Цель: ' + D.profile.kcalTarget[0] + '–' + D.profile.kcalTarget[1] + ' ккал (TDEE ' + D.profile.tdee + ' − дефицит ' + D.profile.deficit[0] + '–' + D.profile.deficit[1] + ').</p>' +
+      '<p class="small muted" style="margin-bottom:0">Цель: ' + D.program.kcalTarget[0] + '–' + D.program.kcalTarget[1] + ' ккал (TDEE ' + D.program.tdee + ' − дефицит ' + D.program.deficit[0] + '–' + D.program.deficit[1] + ').</p>' +
       '</div>';
 
     ['breakfast', 'lunch', 'snack', 'dinner', 'extra'].forEach(function (slot) {
@@ -408,12 +408,35 @@
 
     // фото
     h += '<h2>Фото прогресса</h2><div class="card"><p class="small muted">Спереди, сбоку, сзади — одинаковый свет и ракурс. Фото храни в галерее, здесь только отметка.</p>';
-    D.photoWeeks.forEach(function (p) {
-      var on = st.photos[p.week];
-      h += '<div class="opt ' + (on ? 'on' : '') + '" data-photo="' + p.week + '"><span class="dot"></span>' +
-        '<span class="t">Неделя ' + p.week + '</span><span class="k">' + S.human(p.date) + '</span></div>';
+    var shots = D.photoWeeks
+      .filter(function (week) { return S.diffDays(st.profile.startDate, S.addDays(st.profile.startDate, (week - 1) * 7)) < S.totalDays(); })
+      .map(function (week) { return { id: week, label: 'Неделя ' + week, date: S.addDays(st.profile.startDate, (week - 1) * 7) }; });
+    shots.push({ id: 'final', label: 'Финал', date: st.profile.endDate });
+    shots.forEach(function (shot) {
+      var on = st.photos[shot.id];
+      h += '<div class="opt ' + (on ? 'on' : '') + '" data-photo="' + shot.id + '"><span class="dot"></span>' +
+        '<span class="t">' + shot.label + '</span><span class="k">' + S.human(shot.date) + '</span></div>';
     });
     h += '</div>';
+
+    // профиль
+    var pr = st.profile;
+    h += '<h2>Профиль</h2><div class="card">' +
+      '<div class="row spread small"><span class="muted">Старт</span><span>' + S.human(pr.startDate) + ' · ' + r1(pr.startWeight) + ' кг</span></div>' +
+      '<div class="row spread small"><span class="muted">Цель</span><span>' + S.human(pr.endDate) + ' · ' + r1(pr.goalWeight) + ' кг</span></div>' +
+      '<div class="row spread small"><span class="muted">Темп по плану</span><span>' + S.weeklyLoss() + ' кг/нед · ' + S.totalDays() + ' дней</span></div>' +
+      '<details><summary>Изменить</summary><div class="grid2" style="margin-top:8px">' +
+      '<label class="field"><span>Стартовый вес, кг</span><input type="number" step="0.1" inputmode="decimal" data-pf="startWeight" value="' + (pr.startWeight || '') + '"></label>' +
+      '<label class="field"><span>Цель, кг</span><input type="number" step="0.1" inputmode="decimal" data-pf="goalWeight" value="' + (pr.goalWeight || '') + '"></label>' +
+      '<label class="field"><span>Рост, см</span><input type="number" inputmode="numeric" data-pf="height" value="' + (pr.height || '') + '"></label>' +
+      '<label class="field"><span>Возраст</span><input type="number" inputmode="numeric" data-pf="age" value="' + (pr.age || '') + '"></label>' +
+      '<label class="field"><span>Дата старта</span><input type="date" data-pf="startDate" value="' + pr.startDate + '"></label>' +
+      '<label class="field"><span>Дата цели</span><input type="date" data-pf="endDate" value="' + pr.endDate + '"></label>' +
+      '</div>' +
+      '<label class="field"><span>Вечерние прогулки — с кем</span><input type="text" data-pf="partner" value="' + esc(pr.partner || '') + '" placeholder="например: Ариной"></label>' +
+      '<p class="small muted">Код настройки для переноса на другое устройство:</p>' +
+      '<div class="row"><input type="text" id="setupOut" readonly value="' + esc(S.encodeSetup()) + '"><button id="copyCode">📋</button></div>' +
+      '</details></div>';
 
     // синхронизация с Telegram
     if (TG.active) {
@@ -450,6 +473,20 @@
         S.save(); render();
       });
     });
+    $$('[data-pf]', v).forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var f = inp.dataset.pf;
+        var val = (f === 'startDate' || f === 'endDate' || f === 'partner') ? inp.value : num(inp.value);
+        if (!val && f !== 'partner') return toast('Значение не может быть пустым');
+        var patch = {}; patch[f] = val;
+        S.setProfile(patch);
+        if (!S.isConfigured()) { S.setProfile({ startWeight: st.profile.startWeight }); return toast('Так нельзя — верни значение'); }
+        render();
+      });
+    });
+    var cc = $('#copyCode', v);
+    if (cc) cc.addEventListener('click', function () { copy(S.encodeSetup()); });
+
     var up = $('#syncUp', v);
     if (up) up.addEventListener('click', function () {
       TG.pushNow(function (err) {
@@ -547,7 +584,7 @@
     var sch2 = D.schedule[S.weekday(cur)];
     h += '<h2>' + sch2.name + ' — распорядок</h2><div class="card"><table>';
     sch2.blocks.forEach(function (b) {
-      h += '<tr><td class="muted small" style="white-space:nowrap">' + b[0] + '</td><td>' + esc(b[1]) + '</td></tr>';
+      h += '<tr><td class="muted small" style="white-space:nowrap">' + b[0] + '</td><td>' + esc(S.fill(b[1])) + '</td></tr>';
     });
     h += '</table><p class="small muted" style="margin-bottom:0">Подъём ' + sch2.wake + ' · целевые калории ~' + sch2.kcal + '</p></div>';
 
@@ -682,6 +719,64 @@
     toast('Файл сохранён');
   }
 
+  /* ---------- ПЕРВЫЙ ЗАПУСК ---------- */
+  function renderSetup() {
+    var p = S.load().profile;
+    var today = S.today();
+    var h = '<div class="card" style="margin-top:8px"><h2 style="margin-top:0">💪 Настройка за 30 секунд</h2>' +
+      '<p class="small muted">Программа тренировок и питания уже внутри. Нужны только твои цифры — они хранятся' +
+      ' на твоём устройстве и в твоём облаке Telegram, больше нигде.</p></div>';
+
+    h += '<div class="card"><h3>Быстро: вставить код</h3>' +
+      '<p class="small muted">Если тебе прислали код настройки — вставь его, поля заполнятся сами.</p>' +
+      '<div class="row"><input type="text" id="setupCode" placeholder="WL1-..." autocapitalize="off" autocorrect="off" spellcheck="false">' +
+      '<button class="btn-primary" id="applyCode">OK</button></div></div>';
+
+    h += '<div class="card"><h3>Или заполнить руками</h3><div class="grid2">' +
+      '<label class="field"><span>Вес сейчас, кг</span><input type="number" step="0.1" inputmode="decimal" id="sw" value="' + (p.startWeight || '') + '" placeholder="90"></label>' +
+      '<label class="field"><span>Цель, кг</span><input type="number" step="0.1" inputmode="decimal" id="gw" value="' + (p.goalWeight || '') + '" placeholder="75"></label>' +
+      '<label class="field"><span>Рост, см</span><input type="number" inputmode="numeric" id="hh" value="' + (p.height || '') + '" placeholder="175"></label>' +
+      '<label class="field"><span>Возраст</span><input type="number" inputmode="numeric" id="aa" value="' + (p.age || '') + '" placeholder="30"></label>' +
+      '<label class="field"><span>Старт</span><input type="date" id="sd" value="' + (p.startDate || today) + '"></label>' +
+      '<label class="field"><span>Дата цели</span><input type="date" id="ed" value="' + (p.endDate || S.addDays(today, 120)) + '"></label>' +
+      '</div>' +
+      '<label class="field"><span>Вечерние прогулки — с кем (необязательно)</span><input type="text" id="pt" value="' + esc(p.partner || '') + '" placeholder="например: Ариной"></label>' +
+      '<label class="field"><span>Пол</span></label>' + seg('sex', p.sex || 'м', [['м', 'Мужской'], ['ж', 'Женский']]) +
+      '<button class="btn-primary btn-wide" id="startBtn" style="margin-top:14px">Начать программу</button>' +
+      '<p class="small muted" id="setupHint" style="margin-bottom:0"></p></div>';
+
+    var v = view('setup'); v.innerHTML = h;
+    var sex = p.sex || 'м';
+    wireSeg(v, function (name, val) { if (name === 'sex') { sex = val; S.setProfile({ sex: val }); render(); } });
+
+    $('#applyCode', v).addEventListener('click', function () {
+      try {
+        var prof = S.decodeSetup($('#setupCode', v).value);
+        S.setProfile(prof);
+        if (!S.load().weights.length) S.addWeight(prof.startDate, prof.startWeight);
+        TG.haptic('success');
+        toast('Профиль заполнен');
+        render();
+      } catch (e) { TG.alert(e.message); }
+    });
+
+    $('#startBtn', v).addEventListener('click', function () {
+      var prof = {
+        startWeight: num($('#sw', v).value), goalWeight: num($('#gw', v).value),
+        height: num($('#hh', v).value), age: num($('#aa', v).value), sex: sex,
+        partner: $('#pt', v).value.trim(),
+        startDate: $('#sd', v).value, endDate: $('#ed', v).value
+      };
+      if (!prof.startWeight || !prof.goalWeight) return TG.alert('Укажи текущий вес и цель');
+      if (prof.goalWeight >= prof.startWeight) return TG.alert('Цель должна быть меньше текущего веса');
+      if (!prof.startDate || !prof.endDate || S.diffDays(prof.startDate, prof.endDate) < 7) return TG.alert('Дата цели должна быть хотя бы через неделю после старта');
+      S.setProfile(prof);
+      if (!S.load().weights.length) S.addWeight(prof.startDate, prof.startWeight);
+      TG.haptic('success');
+      render();
+    });
+  }
+
   /* ---------- маршрутизация ---------- */
   var RENDER = {
     today: renderToday, workout: renderWorkout, food: renderFood,
@@ -689,6 +784,16 @@
   };
 
   function render() {
+    if (!S.isConfigured()) {
+      $$('.view').forEach(function (v) { v.hidden = v.dataset.view !== 'setup'; });
+      $('#tabbar').hidden = true;
+      $('.topbar').hidden = true;
+      renderSetup();
+      if (TG.active) { TG.hideMain(); TG.setBack(false); }
+      return;
+    }
+    $('#tabbar').hidden = false;
+    $('.topbar').hidden = false;
     renderTop();
     $$('.view').forEach(function (v) { v.hidden = v.dataset.view !== tab; });
     $$('#tabbar button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });

@@ -14,6 +14,16 @@
   }
   function sign(x) { return (x > 0 ? '+' : '') + r1(x); }
 
+  function totalDaysOf(state) {
+    if (!state.profile.startDate || !state.profile.endDate) return 0;
+    return Math.max(1, S.diffDays(state.profile.startDate, state.profile.endDate));
+  }
+  function weeklyLossOf(state) {
+    var d = totalDaysOf(state);
+    if (!d) return D.program.weeklyLossDefault;
+    return Math.round((state.profile.startWeight - state.profile.goalWeight) / (d / 7) * 10) / 10;
+  }
+
   /* Питание конкретного дня по ПЕРЕДАННОМУ state (не по глобальному хранилищу) */
   function nutritionOf(state, date) {
     var d = state.days[date];
@@ -43,7 +53,7 @@
   /* Все даты программы от старта до «сегодня» включительно */
   function datesUpTo(state, now) {
     var logged = Object.keys(state.days || {}).concat((state.weights || []).map(function (w) { return w.d; })).sort();
-    var start = state.profile.startDate || D.profile.startDate;
+    var start = state.profile.startDate;
     var end = now;
     if (logged.length) {
       if (logged[0] < start) start = logged[0];                       // ничего записанное не теряем
@@ -60,7 +70,7 @@
   /* ---------- блоки ---------- */
 
   function weightBlock(state, now, L) {
-    var p = D.profile;
+    var p = D.program;
     var ws = (state.weights || []).slice();
     var start = ws.length ? ws[0] : { d: state.profile.startDate, kg: state.profile.startWeight };
     var cur = ws.length ? ws[ws.length - 1] : null;
@@ -68,7 +78,7 @@
     L.push('## ⚖️ ВЕС');
     L.push('');
     if (!cur) {
-      L.push('> Взвешиваний ещё нет. Стартовый вес по плану — ' + p.startWeight + ' кг.');
+      L.push('> Взвешиваний ещё нет. Стартовый вес по плану — ' + state.profile.startWeight + ' кг.');
       L.push('');
       return;
     }
@@ -91,7 +101,7 @@
     var days = S.diffDays(start.d, cur.d);
     if (days >= 7) {
       var rate = lost / days * 7;
-      L.push('| Темп факт | ' + r1(rate) + ' кг/нед (план ' + p.weeklyLoss + ') |');
+      L.push('| Темп факт | ' + r1(rate) + ' кг/нед (план ' + weeklyLossOf(state) + ') |');
       if (rate > 0.05) {
         var weeksLeft = left / rate;
         var eta = S.addDays(cur.d, Math.round(weeksLeft * 7));
@@ -248,7 +258,7 @@
   }
 
   function nutritionBlock(state, dates, L) {
-    var p = D.profile;
+    var p = D.program;
     var win = lastN(dates, 14);
     var logged = [], kcalSum = 0, pSum = 0, inRange = 0, lowP = 0;
     win.forEach(function (date) {
@@ -298,8 +308,8 @@
     L.push('');
     L.push('| Параметр | Факт | Цель |');
     L.push('|---|---|---|');
-    L.push('| Шаги (среднее) | ' + (steps.length ? avg(steps) + ' (' + steps.length + ' дн.)' : '—') + ' | ' + D.profile.stepsTarget + ' |');
-    L.push('| Сон (среднее) | ' + (avgSleep != null ? avgSleep + ' ч (' + sleep.length + ' дн.)' : '—') + ' | ' + D.profile.sleepTarget + ' ч |');
+    L.push('| Шаги (среднее) | ' + (steps.length ? avg(steps) + ' (' + steps.length + ' дн.)' : '—') + ' | ' + D.program.stepsTarget + ' |');
+    L.push('| Сон (среднее) | ' + (avgSleep != null ? avgSleep + ' ч (' + sleep.length + ' дн.)' : '—') + ' | ' + D.program.sleepTarget + ' ч |');
     L.push('');
     return { steps: steps.length ? avg(steps) : null, sleep: avgSleep };
   }
@@ -310,7 +320,7 @@
     opts = opts || {};
     var now = opts.now || S.today();
     var L = [];
-    var p = D.profile;
+    var p = D.program;
     var dayNo = S.diffDays(state.profile.startDate, now) + 1;
     var left = S.diffDays(now, state.profile.endDate);
     var dates = datesUpTo(state, now);
@@ -318,7 +328,7 @@
     L.push('# 📊 ОТЧЁТ ДЛЯ CLAUDE — «Жизнь на похудение»');
     L.push('');
     L.push('**Сформирован:** ' + S.human(now) + ' ' + S.parse(now).getFullYear() +
-           '  |  **День программы:** ' + (dayNo > 0 ? dayNo : 0) + ' из ' + p.totalDays +
+           '  |  **День программы:** ' + (dayNo > 0 ? dayNo : 0) + ' из ' + totalDaysOf(state) +
            '  |  **Осталось:** ' + (left > 0 ? left + ' дн.' : 'финиш') );
     L.push('');
     L.push('> Это живой отчёт приложения. Клод, прочитай его целиком и дай разбор по разделу «Что нужно от тебя» в конце.');
@@ -399,7 +409,7 @@
 
     L.push('## 🤖 ЧТО НУЖНО ОТ ТЕБЯ, CLAUDE');
     L.push('');
-    L.push('1. Сверь факт с планом: темп −' + p.weeklyLoss + ' кг/нед, цель ' + state.profile.goalWeight + ' кг к ' + S.human(state.profile.endDate) + '. Успеваю?');
+    L.push('1. Сверь факт с планом: темп −' + weeklyLossOf(state) + ' кг/нед, цель ' + state.profile.goalWeight + ' кг к ' + S.human(state.profile.endDate) + '. Успеваю?');
     L.push('2. Если есть отставание/плато — что менять первым: калории, кардио, шаги или сон? Дай одно конкретное изменение, не список.');
     L.push('3. Проверь блок «Плечо»: пробелы в Face Pulls / обратном Pec Deck / гиперэкстензии — это риск повторного вывиха.');
     L.push('4. Посмотри силовые: где пора добавлять вес по прогрессии, а где стоять на месте.');
@@ -430,7 +440,7 @@
     var wk = workoutStats(state, dates);
     var w14 = workoutStats(state, lastN(dates, 14));
 
-    L.push('📊 Похудение — день ' + (dayNo > 0 ? dayNo : 0) + '/' + D.profile.totalDays +
+    L.push('📊 Похудение — день ' + (dayNo > 0 ? dayNo : 0) + '/' + totalDaysOf(state) +
            ', осталось ' + Math.max(0, S.diffDays(now, state.profile.endDate)) + ' дн.');
     if (cur) {
       var delta = cur.kg - S.planWeight(cur.d);

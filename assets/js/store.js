@@ -12,10 +12,9 @@
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       profile: {
-        startDate: D.profile.startDate,
-        endDate: D.profile.endDate,
-        startWeight: D.profile.startWeight,
-        goalWeight: D.profile.goalWeight
+        startDate: null, endDate: null,
+        startWeight: null, goalWeight: null,
+        height: null, age: null, sex: 'м', partner: ''
       },
       bb: { lunch: ['', '', '', ''], dinner: ['', '', '', ''] },
       weights: [],
@@ -194,14 +193,81 @@
     return s.weights.length ? s.weights[s.weights.length - 1] : null;
   }
 
-  /* плановый вес на дату (линейно 107 → 80 за 134 дня) */
+  /* плановый вес на дату: линейно от стартового веса к цели за срок программы */
   function planWeight(date) {
-    var p = D.profile;
-    var span = diffDays(p.startDate, p.endDate) || p.totalDays;
+    var p = load().profile;
+    if (!isConfigured()) return null;
+    var span = totalDays();
     var n = diffDays(p.startDate, date);
     if (n < 0) n = 0;
     if (n > span) n = span;
     return p.startWeight - (p.startWeight - p.goalWeight) * (n / span);
+  }
+
+  /* ---- профиль ---- */
+  function isConfigured() {
+    var p = load().profile;
+    return !!(p && p.startWeight && p.goalWeight && p.startDate && p.endDate);
+  }
+  function totalDays() {
+    var p = load().profile;
+    if (!p.startDate || !p.endDate) return 0;
+    return Math.max(1, diffDays(p.startDate, p.endDate));
+  }
+  function weeklyLoss() {
+    var p = load().profile, d = totalDays();
+    if (!d || !p.startWeight || !p.goalWeight) return D.program.weeklyLossDefault;
+    return Math.round((p.startWeight - p.goalWeight) / (d / 7) * 10) / 10;
+  }
+  function setProfile(patch) {
+    var p = load().profile;
+    Object.keys(patch).forEach(function (k) { p[k] = patch[k]; });
+    save();
+    return p;
+  }
+
+  /* ---- код быстрой настройки ----
+     Короткая строка с личными цифрами: её можно один раз вставить в приложение,
+     чтобы не заполнять поля руками. В коде приложения этих цифр нет. */
+  function b64enc(str) {
+    // через UTF-8: в строке бывает кириллица (пол «м»/«ж»)
+    var bytes = unescape(encodeURIComponent(str));
+    var b = root.btoa ? root.btoa(bytes) : Buffer.from(str, 'utf8').toString('base64');
+    return b.replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+  }
+  function b64dec(str) {
+    var b = String(str).replace(/-/g, '+').replace(/_/g, '/');
+    while (b.length % 4) b += '=';
+    if (root.atob) return decodeURIComponent(escape(root.atob(b)));
+    return Buffer.from(b, 'base64').toString('utf8');
+  }
+  function encodeSetup(p) {
+    p = p || load().profile;
+    return 'WL1-' + b64enc(JSON.stringify({
+      sw: p.startWeight, gw: p.goalWeight, h: p.height, a: p.age, s: p.sex,
+      sd: p.startDate, ed: p.endDate, pt: p.partner || undefined
+    }));
+  }
+  function decodeSetup(code) {
+    code = String(code || '').trim().replace(/\s+/g, '');
+    if (code.indexOf('WL1-') !== 0) throw new Error('Код должен начинаться с WL1-');
+    var o;
+    try { o = JSON.parse(b64dec(code.slice(4))); }
+    catch (e) { throw new Error('Код повреждён — проверь, что скопирован целиком'); }
+    var prof = {
+      startWeight: +o.sw, goalWeight: +o.gw,
+      height: o.h ? +o.h : null, age: o.a ? +o.a : null, sex: o.s || 'м',
+      partner: o.pt || '', startDate: o.sd, endDate: o.ed
+    };
+    if (!prof.startWeight || !prof.goalWeight || !prof.startDate || !prof.endDate) throw new Error('В коде не хватает данных');
+    return prof;
+  }
+
+  /* Подстановка имени спутника в тексты расписания:
+     {partner} -> " с <имя в творительном падеже>" */
+  function fill(text) {
+    var name = (load().profile.partner || '').trim();
+    return String(text).replace(/\{partner\}/g, name ? ' с ' + name : '');
   }
 
   function exportJSON() { return JSON.stringify(load(), null, 2); }
@@ -220,6 +286,8 @@
     plannedWorkout: plannedWorkout, isTrainingDay: isTrainingDay,
     nutrition: nutrition, findOption: findOption,
     addWeight: addWeight, removeWeight: removeWeight, lastWeight: lastWeight, planWeight: planWeight,
+    isConfigured: isConfigured, totalDays: totalDays, weeklyLoss: weeklyLoss, setProfile: setProfile, fill: fill,
+    encodeSetup: encodeSetup, decodeSetup: decodeSetup,
     exportJSON: exportJSON, importJSON: importJSON, reset: reset, emptyState: emptyState, setState: setState,
     hasContent: hasContent, wasSaved: wasSaved,
     iso: iso, today: today, parse: parse, addDays: addDays, diffDays: diffDays,
