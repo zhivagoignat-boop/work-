@@ -419,6 +419,53 @@
     return L.join('\n');
   }
 
+  /* Короткая сводка — для отправки в чат Telegram (URL ограничен по длине) */
+  function brief(state, opts) {
+    opts = opts || {};
+    var now = opts.now || S.today();
+    var dates = datesUpTo(state, now);
+    var L = [];
+    var dayNo = S.diffDays(state.profile.startDate, now) + 1;
+    var cur = state.weights.length ? state.weights[state.weights.length - 1] : null;
+    var wk = workoutStats(state, dates);
+    var w14 = workoutStats(state, lastN(dates, 14));
+
+    L.push('📊 Похудение — день ' + (dayNo > 0 ? dayNo : 0) + '/' + D.profile.totalDays +
+           ', осталось ' + Math.max(0, S.diffDays(now, state.profile.endDate)) + ' дн.');
+    if (cur) {
+      var delta = cur.kg - S.planWeight(cur.d);
+      L.push('⚖️ ' + r1(cur.kg) + ' кг (' + S.human(cur.d) + '), сброшено ' +
+             r1(state.profile.startWeight - cur.kg) + ' кг из ' + r1(state.profile.startWeight - state.profile.goalWeight) +
+             ', к плану ' + sign(delta) + ' кг');
+    } else L.push('⚖️ Взвешиваний нет');
+    L.push('🏋️ Тренировки: ' + wk.done + '/' + wk.planned + ' всего, ' + w14.done + '/' + w14.planned + ' за 2 недели');
+
+    var gaps = [];
+    D.shoulder.critical.forEach(function (c) {
+      var planned = 0, done = 0;
+      lastN(dates, 21).forEach(function (date) {
+        var pw = S.plannedWorkout(date);
+        if (pw && !pw.optional && pw.exercises.some(function (e) { return c.exIds.indexOf(e.id) >= 0; })) planned++;
+        var d = state.days[date], ex = d && d.w ? d.w.ex : null;
+        if (ex && c.exIds.some(function (id) { return ex[id] && ex[id].done; })) done++;
+      });
+      if (planned && done / planned < 0.8) gaps.push(c.name + ' ' + done + '/' + planned);
+    });
+    L.push(gaps.length ? '🚨 Плечо, пробелы: ' + gaps.join(', ') : '🚨 Плечо: критичные упражнения в норме');
+
+    var logged = 0, kcal = 0, prot = 0;
+    lastN(dates, 14).forEach(function (date) {
+      var n = nutritionOf(state, date);
+      if (n.kcal) { logged++; kcal += n.kcal; prot += n.p; }
+    });
+    L.push(logged ? '🍽️ Среднее за 14 дн.: ' + Math.round(kcal / logged) + ' ккал, ' + Math.round(prot / logged) + ' г белка (' + logged + ' дн.)'
+                  : '🍽️ Питание не отмечалось');
+    if (state.askClaude && state.askClaude.trim()) L.push('❓ ' + state.askClaude.trim().split('\n').join('; '));
+    L.push('');
+    L.push('Полный отчёт — в приложении, вкладка «Отчёт».');
+    return L.join('\n');
+  }
+
   /* компактный снимок: без пустых дней */
   function compact(state, now) {
     var days = {};
@@ -454,6 +501,6 @@
     };
   }
 
-  root.Report = { build: buildReport, compact: compact };
+  root.Report = { build: buildReport, brief: brief, compact: compact };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Report;
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,7 +3,7 @@ var CACHE = 'weightloss-v1';
 var FILES = [
   './', './index.html', './manifest.webmanifest', './assets/icon.svg',
   './assets/css/app.css', './assets/js/data.js', './assets/js/store.js',
-  './assets/js/report.js', './assets/js/ui.js'
+  './assets/js/report.js', './assets/js/telegram.js', './assets/js/ui.js'
 ];
 
 self.addEventListener('install', function (e) {
@@ -18,6 +18,8 @@ self.addEventListener('activate', function (e) {
 
 self.addEventListener('fetch', function (e) {
   if (e.request.method !== 'GET') return;
+  // сторонние адреса (SDK Telegram) не кэшируем — их ответы непрозрачны
+  if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request).then(function (res) {
       var copy = res.clone();

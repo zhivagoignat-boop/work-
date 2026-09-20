@@ -43,11 +43,13 @@
 
   /* ---- доступ ---- */
   var state = null;
+  var saved = false;   // было ли хоть одно сохранение на этом устройстве
 
   function load() {
     if (state) return state;
     try {
       var raw = root.localStorage && root.localStorage.getItem(KEY);
+      saved = !!raw;
       state = raw ? migrate(JSON.parse(raw)) : emptyState();
     } catch (e) {
       console.warn('Не удалось прочитать сохранение:', e);
@@ -55,6 +57,27 @@
     }
     return state;
   }
+
+  /* Есть ли у состояния реальное содержимое (пустые заготовки дней не считаются) */
+  function hasContent(s) {
+    s = s || load();
+    if (s.weights && s.weights.length) return true;
+    if (s.askClaude && s.askClaude.trim()) return true;
+    if (s.checklist && Object.keys(s.checklist).length) return true;
+    if (s.photos && Object.keys(s.photos).length) return true;
+    var days = s.days || {};
+    return Object.keys(days).some(function (k) {
+      var d = days[k];
+      if (!d) return false;
+      if (d.w && (d.w.done || d.w.skipped || Object.keys(d.w.ex || {}).some(function (i) {
+        return d.w.ex[i].done || d.w.ex[i].kg != null || d.w.ex[i].note;
+      }) || (d.w.cardio && d.w.cardio.done))) return true;
+      if (d.m && Object.keys(d.m).some(function (i) { return d.m[i]; })) return true;
+      return !!(d.steps || d.sleep || d.water || d.pain || d.energy || (d.note && d.note.trim()));
+    });
+  }
+
+  function wasSaved() { return saved; }
 
   function migrate(s) {
     var base = emptyState();
@@ -64,14 +87,28 @@
     return s;
   }
 
-  function save() {
-    state.updatedAt = new Date().toISOString();
+  function persist() {
     try {
       root.localStorage.setItem(KEY, JSON.stringify(state));
+      saved = true;
     } catch (e) {
       console.warn('Не удалось сохранить:', e);
     }
+  }
+
+  function save() {
+    state.updatedAt = new Date().toISOString();
+    persist();
     if (root.dispatchEvent) root.dispatchEvent(new CustomEvent('state:changed'));
+  }
+
+  /* Подменить состояние целиком (загрузка из облака Telegram или импорт).
+     silent = не поднимать событие, чтобы не отправить данные обратно в облако. */
+  function setState(obj, opts) {
+    state = migrate(obj);
+    persist();
+    if (!(opts && opts.silent) && root.dispatchEvent) root.dispatchEvent(new CustomEvent('state:changed'));
+    return state;
   }
 
   /* день */
@@ -172,19 +209,19 @@
   function importJSON(text) {
     var parsed = JSON.parse(text);
     if (!parsed || typeof parsed !== 'object' || !('days' in parsed)) throw new Error('Это не файл данных приложения');
-    state = migrate(parsed);
-    save();
+    setState(parsed);
     return state;
   }
 
-  function reset() { state = emptyState(); save(); }
+  function reset() { state = emptyState(); saved = false; save(); }
 
   root.Store = {
     KEY: KEY, load: load, save: save, day: day, exState: exState,
     plannedWorkout: plannedWorkout, isTrainingDay: isTrainingDay,
     nutrition: nutrition, findOption: findOption,
     addWeight: addWeight, removeWeight: removeWeight, lastWeight: lastWeight, planWeight: planWeight,
-    exportJSON: exportJSON, importJSON: importJSON, reset: reset, emptyState: emptyState,
+    exportJSON: exportJSON, importJSON: importJSON, reset: reset, emptyState: emptyState, setState: setState,
+    hasContent: hasContent, wasSaved: wasSaved,
     iso: iso, today: today, parse: parse, addDays: addDays, diffDays: diffDays,
     weekday: weekday, human: human, WD: WD, MONTHS: MONTHS
   };

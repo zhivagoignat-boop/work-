@@ -152,3 +152,12 @@ svg.chart .fact { stroke: var(--accent); fill: none; stroke-width: 2.5; }
 svg.chart .pt { fill: var(--accent); }
 svg.chart text { fill: var(--muted); font-size: 9px; }
 svg.chart .axis { stroke: var(--line); stroke-width: 1; }
+
+/* ---- Telegram Mini App ---- */
+/* MainButton рисуется поверх страницы, поэтому поднимаем панель вкладок */
+body.tg-main { padding-bottom: calc(68px + 66px + env(safe-area-inset-bottom)); }
+body.tg-main .tabbar { bottom: 66px; }
+body.tg .topbar { padding-top: 8px; }            /* свою «чёлку» рисует Telegram */
+body.tg .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+body.tg-main .toast { bottom: calc(150px + env(safe-area-inset-bottom)); }
+.sync-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; }

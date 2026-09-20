@@ -3,6 +3,7 @@
   'use strict';
 
   var D = window.APP_DATA, S = window.Store, R = window.Report;
+  var TG = window.TG || { active: false, cloud: false, status: 'локально', setMain: function () {}, hideMain: function () {}, setBack: function () {}, haptic: function () {}, confirm: function (m, c) { c(window.confirm(m)); }, alert: function (m) { window.alert(m); }, share: function () {}, pushNow: function (cb) { cb && cb(new Error('нет Telegram')); }, init: function () {} };
   var cur = S.today();           // выбранная дата
   var tab = 'today';
   var timer = null, timerLeft = 0;
@@ -229,7 +230,7 @@
         if (id === '__cardio') day.w.cardio.done = !day.w.cardio.done;
         else { var st = S.exState(cur, id, true); st.done = !st.done; }
         S.save();
-        if (navigator.vibrate) navigator.vibrate(15);
+        TG.haptic('light');
         render();
       });
     });
@@ -274,7 +275,7 @@
       if (out) out.textContent = timerLeft > 0 ? timerLeft + ' сек' : '';
       if (timerLeft <= 0) {
         clearInterval(timer);
-        if (navigator.vibrate) navigator.vibrate([100, 60, 100]);
+        TG.haptic('success');
         toast('Отдых окончен — следующий подход');
       }
     }, 1000);
@@ -414,6 +415,17 @@
     });
     h += '</div>';
 
+    // синхронизация с Telegram
+    if (TG.active) {
+      h += '<h2>Синхронизация</h2><div class="card">' +
+        '<div class="row spread"><span>Хранилище</span><span class="badge ' + (TG.cloud ? 'ok' : '') + '" id="syncStatus">' + esc(TG.status) + '</span></div>' +
+        '<p class="small muted">' + (TG.cloud
+          ? 'Данные лежат в облаке Telegram и подтянутся на любом устройстве, где ты откроешь это приложение.'
+          : 'Твоя версия Telegram не поддерживает облако — данные хранятся только в этом браузере. Делай экспорт JSON.') + '</p>' +
+        (TG.cloud ? '<div class="row wrap"><button id="syncUp">☁️ Сохранить в облако</button><button id="syncDown">⬇️ Загрузить из облака</button></div>' : '') +
+        '</div>';
+    }
+
     // данные
     h += '<h2>Данные</h2><div class="card"><div class="row wrap">' +
       '<button id="expJson">💾 Экспорт JSON</button>' +
@@ -438,6 +450,24 @@
         S.save(); render();
       });
     });
+    var up = $('#syncUp', v);
+    if (up) up.addEventListener('click', function () {
+      TG.pushNow(function (err) {
+        toast(err ? 'Не вышло: ' + err.message : 'Сохранено в облако Telegram');
+        render();
+      });
+    });
+    var down = $('#syncDown', v);
+    if (down) down.addEventListener('click', function () {
+      TG.pull(function (cloudState) {
+        if (!cloudState) return toast('В облаке пока пусто');
+        TG.confirm('Заменить данные на этом устройстве версией из облака?', function (yes) {
+          if (!yes) return;
+          S.setState(cloudState, { silent: true });
+          toast('Загружено из облака'); render();
+        });
+      });
+    });
     $('#expJson', v).addEventListener('click', function () { download('weightloss-data.json', S.exportJSON(), 'application/json'); });
     $('#impJson', v).addEventListener('click', function () { $('#fileIn', v).click(); });
     $('#fileIn', v).addEventListener('change', function (e) {
@@ -450,7 +480,9 @@
       fr.readAsText(f);
     });
     $('#resetAll', v).addEventListener('click', function () {
-      if (confirm('Удалить все записи? Сделай сначала экспорт.')) { S.reset(); render(); }
+      TG.confirm('Удалить все записи? Сделай сначала экспорт.', function (yes) {
+        if (yes) { S.reset(); render(); }
+      });
     });
   }
 
@@ -590,10 +622,15 @@
     var h = '<div class="card"><strong>🤖 Постоянный отчёт для Claude</strong>' +
       '<p class="small muted">Собирается сам из твоих отметок. Скопируй и отправь мне в чат — или положи файл в <code>reports/</code> репозитория, чтобы отчёт всегда был у меня перед глазами.</p>' +
       '<div class="row wrap" style="margin-top:8px">' +
-      '<button class="btn-primary" id="rCopy">📋 Скопировать</button>' +
+      '<button class="btn-primary" id="rCopy">📋 Скопировать отчёт</button>' +
+      (TG.active ? '<button id="rSend">📨 Сводка в чат</button>' : '') +
+      '</div>' +
+      (TG.active ? '<p class="small muted" style="margin-bottom:0">«Сводка в чат» отправит короткую выжимку (вес, тренировки, плечо) в любой чат — удобно закинуть в «Избранное». Полный отчёт — кнопкой «Скопировать».</p>' : '') +
+      '<details><summary>Файлы</summary><div class="row wrap" style="margin-top:8px">' +
       '<button id="rMd">⬇️ Отчёт .md</button>' +
       '<button id="rJson">⬇️ Данные .json</button>' +
-      '</div></div>';
+      '</div>' + (TG.active ? '<p class="small muted">В Telegram скачивание файлов может не сработать — тогда открой приложение в обычном браузере.</p>' : '') +
+      '</details></div>';
 
     h += '<div class="card"><label class="field"><span>Вопросы ко мне (попадут в отчёт)</span>' +
       '<textarea id="askC" rows="3" placeholder="Например: вес встал на неделю, что менять?">' + esc(st.askClaude || '') + '</textarea></label>' +
@@ -603,6 +640,11 @@
 
     var v = view('report'); v.innerHTML = h;
     $('#rCopy', v).addEventListener('click', function () { copy(md); });
+    var send = $('#rSend', v);
+    if (send) send.addEventListener('click', function () {
+      TG.haptic('light');
+      TG.share(R.brief(S.load(), { now: S.today() }));
+    });
     $('#rMd', v).addEventListener('click', function () { download('claude-report-' + S.today() + '.md', md, 'text/markdown'); });
     $('#rJson', v).addEventListener('click', function () { download('weightloss-data.json', S.exportJSON(), 'application/json'); });
     $('#askSave', v).addEventListener('click', function () {
@@ -618,9 +660,16 @@
       var ta = document.createElement('textarea');
       ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
       document.body.appendChild(ta); ta.select();
-      try { document.execCommand('copy'); toast('Отчёт скопирован'); }
-      catch (e) { toast('Выдели текст отчёта и скопируй вручную'); }
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
       document.body.removeChild(ta);
+      if (ok) return toast('Отчёт скопирован');
+      var pre = $('#rPre');                      // последний шанс: выделяем отчёт на экране
+      if (pre && window.getSelection) {
+        var range = document.createRange(); range.selectNodeContents(pre);
+        var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        toast('Текст выделен — скопируй долгим нажатием');
+      } else toast('Выдели текст отчёта и скопируй вручную');
     }
   }
 
@@ -644,7 +693,29 @@
     $$('.view').forEach(function (v) { v.hidden = v.dataset.view !== tab; });
     $$('#tabbar button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === tab); });
     RENDER[tab]();
+    nativeButtons();
     window.scrollTo({ top: 0 });
+  }
+
+  /* MainButton и BackButton Telegram под текущую вкладку */
+  function nativeButtons() {
+    if (!TG.active) return;
+    document.body.classList.add('tg');
+    document.body.classList.toggle('tg-main', tab === 'workout' || tab === 'report');
+    TG.setBack(tab !== 'today', function () { tab = 'today'; render(); });
+    if (tab === 'workout') {
+      var day = S.day(cur, true);
+      TG.setMain(day.w.done ? '✅ Тренировка засчитана' : 'Завершить тренировку', function () {
+        var dd = S.day(cur, true);
+        dd.w.done = !dd.w.done;
+        if (dd.w.done) { dd.w.skipped = false; dd.w.id = (workoutForDate(cur) || D.workouts.day1).id; }
+        S.save(); TG.haptic(dd.w.done ? 'success' : 'light');
+        toast(dd.w.done ? 'Тренировка засчитана 💪' : 'Отметка снята');
+        render();
+      });
+    } else if (tab === 'report') {
+      TG.setMain('📋 Скопировать отчёт', function () { copy(R.build(S.load(), { now: S.today() })); });
+    } else TG.hideMain();
   }
 
   document.addEventListener('click', function (e) {
@@ -660,6 +731,15 @@
 
   S.load();
   render();
+
+  TG.init(function (loadedFromCloud) {
+    render();
+    if (loadedFromCloud) toast('Данные загружены из облака Telegram');
+  });
+  TG.onStatus = function (status) {
+    var el = $('#syncStatus');
+    if (el) el.textContent = status;
+  };
 
   if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
     navigator.serviceWorker.register('sw.js').catch(function () {});
