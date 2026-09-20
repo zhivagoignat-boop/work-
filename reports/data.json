@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "createdAt": "2026-09-20T19:24:39.422Z",
+  "updatedAt": "2026-09-20T19:24:39.422Z",
+  "profile": {
+    "startDate": "2026-09-21",
+    "endDate": "2027-02-01",
+    "startWeight": 107,
+    "goalWeight": 80
+  },
+  "bb": {
+    "lunch": [
+      "",
+      "",
+      "",
+      ""
+    ],
+    "dinner": [
+      "",
+      "",
+      "",
+      ""
+    ]
+  },
+  "weights": [],
+  "days": {},
+  "photos": {},
+  "askClaude": ""
+}
