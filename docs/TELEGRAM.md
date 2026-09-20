@@ -21,25 +21,21 @@
 
 Выбери **один** вариант. Если сомневаешься — вариант А.
 
-## Вариант А. Публичный репозиторий + GitHub Pages (выбранный)
+## Вариант А. Публичный репозиторий + GitHub Pages ✅ сделано
 
-Приложение уже подготовлено: в нём нет ни одной личной цифры, поэтому код можно
-публиковать спокойно. Личные данные задаются внутри приложения и хранятся только
-на твоём устройстве и в облаке Telegram.
+Код приложения уже выложен: **https://github.com/zhivagoignat-boop/pohudenie-app-**
+Личных цифр в нём нет — профиль задаётся внутри приложения.
 
-1. Создай **пустой публичный репозиторий**: https://github.com/new
-   * Repository name: `pohudenie-app`
-   * Visibility: **Public**
-   * Галочки «Add a README», «.gitignore», «license» — **не ставить**
-   * Create repository
-2. Напиши мне «готово» — я запушу туда код приложения (это 30 секунд).
-3. В новом репозитории: **Settings → Pages → Build and deployment**
-   * Source: **Deploy from a branch**
-   * Branch: **main**, папка **/ (root)** → **Save**
-4. Через 1–2 минуты приложение будет по адресу:
-   **`https://zhivagoignat-boop.github.io/pohudenie-app/`**
+Осталось включить раздачу сайта:
 
-Этот адрес и нужен для BotFather. Обновления потом публикуются автоматически при пуше.
+1. Открой **https://github.com/zhivagoignat-boop/pohudenie-app-/settings/pages**
+2. **Build and deployment → Source: Deploy from a branch**
+3. **Branch: main**, папка **/ (root)** → **Save**
+4. Через 1–2 минуты приложение будет тут:
+
+   **`https://zhivagoignat-boop.github.io/pohudenie-app-/`**
+
+Этот адрес и нужен для BotFather. Дальше обновления публикуются автоматически при пуше.
 
 ## Вариант Б. Без нового репозитория — Netlify Drop (можно прямо сейчас)
 
@@ -192,10 +188,10 @@ Telegram кэширует мини-приложения. Если после о�
 
 # Короткий чеклист
 
-- [ ] Создал пустой публичный репозиторий `pohudenie-app`
-- [ ] Получил от меня код в репозитории
+- [x] Создан публичный репозиторий `pohudenie-app-`
+- [x] Код приложения выложен
 - [ ] Settings → Pages → Deploy from a branch → main / (root) → Save
-- [ ] Открыл `https://zhivagoignat-boop.github.io/pohudenie-app/` в браузере — работает
+- [ ] Открыл `https://zhivagoignat-boop.github.io/pohudenie-app-/` в браузере — работает
 - [ ] Создал бота в @BotFather (`/newbot`), токен сохранил в надёжном месте
 - [ ] Привязал кнопку меню (`/mybots` → Bot Settings → Menu Button → адрес)
 - [ ] Открыл приложение в Telegram

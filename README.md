@@ -8,6 +8,11 @@
 
 ### В Telegram (основной способ)
 
+**Приложение опубликовано:** код — в [zhivagoignat-boop/pohudenie-app-](https://github.com/zhivagoignat-boop/pohudenie-app-),
+адрес после включения Pages — `https://zhivagoignat-boop.github.io/pohudenie-app-/`.
+Этот репозиторий остаётся приватным: здесь план, отчёты и данные.
+
+
 Приложение работает как **Telegram Mini App**: открывается внутри Telegram, подстраивается
 под его тему, синхронизирует данные через облако Telegram и отправляет сводку в чат.
 
