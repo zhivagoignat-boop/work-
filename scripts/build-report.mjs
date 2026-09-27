@@ -29,6 +29,14 @@ if (!fs.existsSync(src)) {
 const sandbox = { console };
 sandbox.window = sandbox;
 sandbox.globalThis = sandbox;
+/* Хранилище приложения рассчитано на браузер: подменяем localStorage заглушкой,
+   иначе каждое сохранение печатает предупреждение. */
+const memory = new Map();
+sandbox.localStorage = {
+  getItem: (k) => (memory.has(k) ? memory.get(k) : null),
+  setItem: (k, v) => void memory.set(k, String(v)),
+  removeItem: (k) => void memory.delete(k)
+};
 vm.createContext(sandbox);
 for (const f of ['assets/js/data.js', 'assets/js/store.js', 'assets/js/report.js']) {
   vm.runInContext(fs.readFileSync(path.join(root, f), 'utf8'), sandbox, { filename: f });
@@ -39,12 +47,18 @@ if (!state || typeof state !== 'object' || !('days' in state)) {
   console.error('Это не выгрузка приложения: в JSON нет поля "days".');
   process.exit(1);
 }
-/* дополняем недостающие поля структурой по умолчанию */
-const base = sandbox.Store.emptyState();
-for (const k of Object.keys(base)) if (!(k in state)) state[k] = base[k];
+/* Кладём состояние в хранилище: генератор спрашивает у него профиль,
+   плановый вес и перенесённые тренировки. Без этого отчёт считался бы
+   по пустому профилю. */
+sandbox.Store.setState(state, { silent: true });
+const loaded = sandbox.Store.load();
+
+if (!sandbox.Store.isConfigured()) {
+  console.error('В выгрузке не заполнен профиль (вес, цель, даты) — отчёт будет неполным.');
+}
 
 const now = process.env.REPORT_DATE || sandbox.Store.today();
-const md = sandbox.Report.build(state, { now });
+const md = sandbox.Report.build(loaded, { now });
 
 fs.mkdirSync(path.dirname(out), { recursive: true });
 fs.writeFileSync(out, md + '\n');
