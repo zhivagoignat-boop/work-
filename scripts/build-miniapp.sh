@@ -11,7 +11,7 @@ cd "$(dirname "$0")/.."
 rm -rf dist
 mkdir -p dist/assets
 
-cp index.html sw.js manifest.webmanifest dist/
+cp index.html sw.js manifest.webmanifest version.json dist/
 cp -r assets/. dist/assets/
 
 # на всякий случай: ничего личного
