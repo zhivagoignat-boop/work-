@@ -1,0 +1,59 @@
+# Публикация Telegram Mini App на GitHub Pages.
+#
+# Перед первым запуском включи Pages:
+#   Settings -> Pages -> Build and deployment -> Source: GitHub Actions
+#
+# Публикуется ТОЛЬКО само приложение. Личные данные (reports/, docs/)
+# в публикацию не попадают.
+name: Deploy Mini App to GitHub Pages
+
+on:
+  push:
+    branches: [main, claude/weight-loss-app-te4j44]
+    paths:
+      - 'index.html'
+      - 'sw.js'
+      - 'manifest.webmanifest'
+      - 'assets/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Собрать только файлы приложения
+        run: |
+          mkdir -p _site/assets
+          cp index.html sw.js manifest.webmanifest _site/
+          cp -r assets/. _site/assets/
+          # страховка: ничего личного в публикацию не уезжает
+          rm -rf _site/reports _site/docs
+          ls -R _site
+
+      - name: Проверить синтаксис скриптов
+        run: |
+          for f in _site/assets/js/*.js _site/sw.js; do
+            node --check "$f"
+          done
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
